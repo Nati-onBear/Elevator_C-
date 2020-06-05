@@ -29,26 +29,26 @@ struct Elevator {
 	int currentFloor;
 	int currentPasser;
 	direction direction;
-	set<int> outerReq;
-	set<int> toFloor;
+	bool outerReq[FLOOR_NUM + 1] = { false, false, false, false, false, false, false, false };
+	bool toFloor[FLOOR_NUM + 1] = { false, false, false, false, false, false, false, false };
 };
 
 Elevator initializeElevator(int);
 
 Request initRequest();
 
-void delegateRequest(Elevator, Elevator, Request);
+void delegateRequest(Elevator*, Elevator*, Request);
 
 int main(int argc, char** argv) {
-	cout << "Init building successfully!";
-	cout << "\nBuilding's number of floor is: " << MAX_PASS;
-	cout << "\nBuilding's number of elevators is: " << ELEVATOR_NUM;
-	cout << "\nBuilding's elevator's number of maximum passengers is: " << FLOOR_NUM;
+	cout << "Init building successfully!" << endl;
+	cout << "Building's number of floor is: " << MAX_PASS << endl;
+	cout << "Building's number of elevators is: " << ELEVATOR_NUM << endl;
+	cout << "Building's elevator's number of maximum passengers is: " << FLOOR_NUM << endl;
 
 	Elevator e1 = initializeElevator(1);
 	Elevator e2 = initializeElevator(2);
 
-	e1.currentFloor = 5;
+	e1.currentFloor = 5; // for test
 
 	bool working = true;
 	while (working) {
@@ -59,11 +59,21 @@ int main(int argc, char** argv) {
 		if (isReq == -1) working = false;
 		else {
 			Request req = initRequest();
-			delegateRequest(e1, e2, req);
+			delegateRequest(&e1, &e2, req);
+
+			for (int i = 0; i < 8; i++) {
+				cout << e1.outerReq[i] << " ";
+			}
+			cout << endl;
+			for (int i = 0; i < 8; i++) {
+				cout << e2.outerReq[i] << " ";
+			}
+			cout << endl;
+
 		}
 	}
 
-	cout << "\nThank you for using Bear Elevators. Have a good night <3";
+	cout << "\nThank you for using Bear Elevators. Have a good night <3" << endl;
 	return 0;
 }
 
@@ -73,8 +83,6 @@ Elevator initializeElevator(int id) {
 	e.currentFloor = 0; // Ground floor
 	e.currentPasser = 0;
 	e.direction = IDLE;
-	//e.outerReq = set<Request>;
-	//e.toFloor = set<int>;
 	return e;
 }
 
@@ -102,8 +110,35 @@ Request initRequest() {
 }
 
 // Delegate request to one of elevators 
-void delegateRequest(Elevator e1, Elevator e2, Request r) {
-	if (e1.direction == r.direction || e1.direction == IDLE) {
-		e1.outerReq.insert(r.fromFloor);
+void delegateRequest(Elevator *e1, Elevator *e2, Request r) {
+	if (e1->direction == e2->direction && e1->direction == IDLE) {
+		if (abs(e1->currentFloor - r.fromFloor) < abs(e2->currentFloor - r.fromFloor))
+			e1->outerReq[r.fromFloor] = true;
+		else e2->outerReq[r.fromFloor] = true;
 	}
+	else if (e1->direction == e2->direction && e1->direction == r.direction) {
+		if (e1->direction == DOWN) {
+			if (e1->currentFloor > r.fromFloor && e2->currentFloor > r.fromFloor) {
+				if (e1->currentFloor < e2->currentFloor)
+					e1->outerReq[r.fromFloor] = true;
+				else e2->outerReq[r.fromFloor] = true;
+			} 
+			else if (e1->currentFloor < r.fromFloor)
+				e2->outerReq[r.fromFloor] = true;
+			else e1->outerReq[r.fromFloor] = true;
+		}
+		else if (e1->direction == UP) {
+			if (e1->currentFloor < r.fromFloor && e2->currentFloor < r.fromFloor) {
+				if (e1->currentFloor > e2->currentFloor)
+					e1->outerReq[r.fromFloor] = true;
+				else e2->outerReq[r.fromFloor] = true;
+			}
+			else if (e1->currentFloor > r.fromFloor)
+				e2->outerReq[r.fromFloor] = true;
+			else e1->outerReq[r.fromFloor] = true;
+		}
+	}
+	else if (e1->direction != e2->direction && e1->direction != r.direction) {
+		e2->outerReq[r.fromFloor] = true;
+	} else e1->outerReq[r.fromFloor] = true;
 }
