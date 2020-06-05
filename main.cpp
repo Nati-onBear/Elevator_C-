@@ -39,6 +39,8 @@ Request initRequest();
 
 void delegateRequest(Elevator*, Elevator*, Request);
 
+void rideElevators();
+
 int main(int argc, char** argv) {
 	cout << "Init building successfully!" << endl;
 	cout << "Building's number of floor is: " << MAX_PASS << endl;
@@ -53,11 +55,11 @@ int main(int argc, char** argv) {
 	bool working = true;
 	while (working) {
 		int isReq;
-		cout << "\nGive me a request (-1 to exit, 1 to request): ";
+		cout << "\nGive me a request (-1 to exit, 1 to request, 2 to start riding): ";
 		cin >> isReq;
-
+		// TODO check correct isReq
 		if (isReq == -1) working = false;
-		else {
+		else if (isReq == 1) {
 			Request req = initRequest();
 			delegateRequest(&e1, &e2, req);
 
@@ -69,8 +71,11 @@ int main(int argc, char** argv) {
 				cout << e2.outerReq[i] << " ";
 			}
 			cout << endl;
-
 		}
+		else if (isReq == 2) {
+			rideElevators();
+		}
+		else cout << "Wrong input for request!!!" << endl;
 	}
 
 	cout << "\nThank you for using Bear Elevators. Have a good night <3" << endl;
@@ -102,6 +107,7 @@ Request initRequest() {
 		cin >> direction;
 	}
 	req.fromFloor = atFloor;
+
 	if (direction == 2) // up
 		req.direction = UP;
 	else req.direction = DOWN;
@@ -111,11 +117,13 @@ Request initRequest() {
 
 // Delegate request to one of elevators 
 void delegateRequest(Elevator *e1, Elevator *e2, Request r) {
+	// Case: Both elevators are idle
 	if (e1->direction == e2->direction && e1->direction == IDLE) {
 		if (abs(e1->currentFloor - r.fromFloor) < abs(e2->currentFloor - r.fromFloor))
 			e1->outerReq[r.fromFloor] = true;
 		else e2->outerReq[r.fromFloor] = true;
 	}
+	// Case: Both elevators are going in the same direction as request
 	else if (e1->direction == e2->direction && e1->direction == r.direction) {
 		if (e1->direction == DOWN) {
 			if (e1->currentFloor > r.fromFloor && e2->currentFloor > r.fromFloor) {
@@ -138,7 +146,13 @@ void delegateRequest(Elevator *e1, Elevator *e2, Request r) {
 			else e1->outerReq[r.fromFloor] = true;
 		}
 	}
+	// Case: Two elevators has different directions
 	else if (e1->direction != e2->direction && e1->direction != r.direction) {
 		e2->outerReq[r.fromFloor] = true;
 	} else e1->outerReq[r.fromFloor] = true;
 }
+
+void rideElevators()
+{
+}
+
