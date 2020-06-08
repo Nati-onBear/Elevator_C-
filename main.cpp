@@ -22,37 +22,44 @@ struct Elevator {
 	int currentFloor = 0;
 	int currentPasser = 0;
 	enum::direction direction = IDLE;
-	vector<int> outerReq;
-	vector<int> innerReq;
+	vector<int> requests;
 
 	int getCurrentFloor() { return currentFloor; }
 	int getCurrentPasser() { return currentPasser; }
 	enum::direction getCurrentDirection() { return direction; }
 
-	void printOuterReq() {
-		cout << "Outer req of e" << id << ": " << endl;
+	void printRequests() {
+		cout << "Requests of e" << id << ": " << endl;
 		vector<int>::iterator it;
-		for (it = outerReq.begin(); it != outerReq.end(); it++)
-			cout << *it << (it == outerReq.end() ? NULL : ", ");
+		for (it = requests.begin(); it != requests.end(); it++)
+			cout << *it << (it == requests.end() ? NULL : ", ");
 		cout << endl;
 	}
 
-	void printInnerReq() {
-		cout << "Inner req of e" << id << ": " << endl;
-		vector<int>::iterator it;
-		for (it = innerReq.begin(); it != innerReq.end(); it++)
-			cout << *it << (it == outerReq.end() ? NULL : ", ");
-		cout << endl;
+	void printInfo() {
+		string dir = (direction == UP) ? "UP" : ((direction == DOWN) ? "DOWN" : "IDLE");
+		cout << "================================================\n";
+		cout << "Elevator #" << id << endl;
+		cout << "Elevator is currently at floor " << currentFloor <<endl;
+		cout << "Elevator's current number of people is " << currentPasser << endl;
+		cout << "Elevator's current direction is " << dir << endl;
+		cout << "================================================\n";
+	}
+
+	bool isValidReq(int floor)
+	{
+		if (currentPasser == MAX_PASS) return false;
+		return true;
 	}
 };
 
-Request getRequest();
+void operateElevators();
 
-bool isValidReq(int floor);
+Request getRequest();
 
 void delegateRequest(Request r);
 
-void rideElevators();
+void rideElevators(Elevator* e);
 
 void exit();
 
@@ -61,13 +68,21 @@ Elevator e1 = { 1 };
 Elevator e2 = { 2 };
 
 int main(int argc, char** argv) {
-	cout << "Init building successfully!" << endl;
-	cout << "Building's number of floor is: " << MAX_PASS << endl;
-	cout << "Building's number of elevators is: " << ELEVATOR_NUM << endl;
-	cout << "Building's elevator's number of maximum passengers is: " << FLOOR_NUM << endl;
+	cout << "Building's number of floor is: " << FLOOR_NUM << endl;
+	cout << "A waiting area's number of elevators is: " << ELEVATOR_NUM << endl;
+	cout << "Elevator's number of maximum passengers is: " << MAX_PASS << endl;
 
 	e1.currentFloor = 5; // for test
 
+	e1.printInfo();
+	e2.printInfo();
+	
+	operateElevators();
+	exit();
+	return 0;
+}
+
+void operateElevators() {
 	bool working = true;
 	while (working) {
 		int isReq;
@@ -81,16 +96,14 @@ int main(int argc, char** argv) {
 			delegateRequest(req);
 
 			// for test
-			e1.printOuterReq();
-			e2.printOuterReq();
+			e1.printRequests();
+			e2.printRequests();
 		}
 		else if (isReq == 2) {
-			rideElevators();
+			// rideElevators();
 		}
 		else cout << "Wrong input for request!!!" << endl;
 	}
-	exit();
-	return 0;
 }
 
 Request getRequest() {
@@ -117,21 +130,18 @@ Request getRequest() {
 	return req;
 }
 
-bool isValidReq(int floor)
-{
-	return false;
-}
-
 // Delegate request to one of elevators 
 void delegateRequest(Request r) {
 	// Lambda function for delegate request and increment passer
 	auto deleReq = [](Elevator *e, Request r) {
-		e->outerReq.push_back(r.fromFloor);
+		e->requests.push_back(r.fromFloor);
 		e->currentPasser++;
 		if (e->direction == IDLE) e->direction = r.direction;
 	};
 
+	// TODO: check for direction...
 	// Case: Full for both elevators
+	// TODO implement these as isValidReq
 	if (e1.currentPasser == MAX_PASS && e2.currentPasser == MAX_PASS) {
 		cout << "Both elevators are full!" << endl;
 		return;
@@ -174,13 +184,53 @@ void delegateRequest(Request r) {
 	} else deleReq(&e1, r);
 }
 
-void rideElevators()
+void rideElevators(Elevator* e)
 {
+	int currFloor = e->currentFloor;
+	int currCapa = e->currentPasser;
 
+	cout << "For elevator " << e->id << ", the current floor is " << currFloor << ", number of people in it is " << currCapa << endl;
+	// TODO sort req
+	
+	while (!e->requests.empty()) {
+		if (e->direction == UP) {
+			e->currentFloor = e->requests[0];
+		}
+		else if (e->direction == DOWN) {
+			e->currentFloor = e->requests[e->requests.size() - 1];
+		}
+
+		currFloor = e->currentFloor;
+		currCapa = e->currentPasser;
+
+		auto curr_floor_req = find(e->requests.begin(), e->requests.end(), e->currentFloor);
+		while (curr_floor_req != e->requests.end())
+		{
+			e->requests.erase(curr_floor_req); //removing current floor's requests
+			currCapa--;
+			curr_floor_req = find(e->requests.begin(), e->requests.end(), e->currentFloor);
+		}
+
+		e->currentPasser = currCapa;
+
+		// Display info
+		e->printInfo();
+
+		if (currFloor == FLOOR_NUM) e->direction = DOWN;
+		else if (currFloor == 1) e->direction = UP;
+
+		if (currCapa < MAX_PASS) {
+			getRequest();
+			// TODO sort here or in delegate
+			// Problem: can't reach e2
+		}
+	}
 }
 
 void exit()
 {
 	e1 = { 1 }; e2 = { 2 };
+	e1.printInfo();
+	e2.printInfo();
 	cout << "\nThank you for using Bear Elevators. Have a good night <3" << endl;
 }
