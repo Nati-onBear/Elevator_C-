@@ -287,8 +287,9 @@ void rideElevators(Elevator* pE) {
 		<< ", number of people in it is " << pE->currentPasser << endl;
 
 	while (!outerReq.empty() || !innerReq.empty()) {
-		bool isFromOuter = false;
+		bool isFromOuter = outerReq.empty() ? false : (innerReq.empty() ? true : NULL);
 		bool isUp = pE->direction == Direction::UP;
+
 		if (isUp) {
 			isFromOuter = outerReq[0] < innerReq[0];
 			pE->currentFloor = isFromOuter ? outerReq[0] : innerReq[0];
@@ -297,9 +298,9 @@ void rideElevators(Elevator* pE) {
 			isFromOuter = outerReq[outerReq.size() - 1] < innerReq[innerReq.size() - 1];
 			pE->currentFloor = isFromOuter ? outerReq[outerReq.size() - 1] : innerReq[innerReq.size() - 1];
 		}
-
 		int currFloor = pE->currentFloor;
 		int currPass = pE->currentPasser;
+		cout << "here1";
 
 		auto currReq = isFromOuter ? find(outerReq.begin(), outerReq.end(), pE->currentFloor) 
 			: find(innerReq.begin(), innerReq.end(), pE->currentFloor);
@@ -313,8 +314,12 @@ void rideElevators(Elevator* pE) {
 				? outerReq.erase(currReq)
 				: innerReq.erase(currReq);
 			isUp 
-				? isFromOuter = outerReq[0] < innerReq[0] 
-				: isFromOuter = outerReq[outerReq.size() - 1] < innerReq[innerReq.size() - 1];
+				? isFromOuter = outerReq.empty() ? false : innerReq.empty() ? true : outerReq[0] < innerReq[0]
+				: isFromOuter = outerReq.empty()
+					? false
+					: innerReq.empty()
+						? true
+						: outerReq[outerReq.size() - 1] < innerReq[innerReq.size() - 1];
 
 			currReq = isFromOuter 
 				? find(outerReq.begin(), outerReq.end(), pE->currentFloor)
