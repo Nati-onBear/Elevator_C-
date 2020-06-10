@@ -35,10 +35,6 @@ struct Request {
 	{
 		return direction == Direction::UP ? floor < a.floor : floor > a.floor;
 	}*/
-
-	bool operator==(const Request& a) const {
-		return direction == Direction::UP ? floor < a.floor : floor > a.floor;
-	}
 };
 
 struct Elevator {
@@ -46,7 +42,8 @@ struct Elevator {
 	int currentFloor = 0;
 	int currentPasser = 0;
 	enum::Direction direction = Direction::IDLE;
-	vector<Request> requests = {};
+	vector<int> outerReq = {};
+	vector<int> innerReq = {};
 
 	int getCurrentFloor() { return currentFloor; }
 	int getCurrentPasser() { return currentPasser; }
@@ -54,9 +51,9 @@ struct Elevator {
 
 	void printRequests() {
 		cout << "Requests of elevator " << id << ": ";
-		vector<Request>::iterator it;
-		for (it = requests.begin(); it != requests.end(); it++)
-			cout << (*it).toString();
+		vector<int>::iterator it;
+		for (it = outerReq.begin(); it != outerReq.end(); it++)
+			cout << to_string(*it);
 		cout << endl;
 	}
 
@@ -201,7 +198,7 @@ int getInnerRequest() {
 void delegateRequest(Request r) {
 	// Lambda function for delegate request and increment passer
 	auto deleReq = [](Elevator *e, Request r) {
-		e->requests.push_back(r);
+		e->outerReq.push_back(r.floor);
 		if (e->direction == Direction::IDLE) e->direction = r.direction;
 	};
 
@@ -279,33 +276,49 @@ bool sortByDirection (const Request& l, const Request& r) {
 }
 
 void rideElevators(Elevator* pE) {
-	vector<Request> reqs = pE->requests;
-
-	// Structure Sorting
+	vector<int> outerReq = pE->outerReq;
+	vector<int> innerReq = pE->innerReq;
 	
-	sort(reqs.begin(), reqs.end());
-	// The requests have been sorted based on direction
+	sort(outerReq.begin(), outerReq.end());
+	sort(innerReq.begin(), innerReq.end());
 
 	cout << "For elevator " << pE->id 
 		<< ", the current floor is " << pE->currentFloor 
 		<< ", number of people in it is " << pE->currentPasser << endl;
-	while (!reqs.empty()) {
-		// Directly go to next request's floor
-		pE->currentFloor = reqs[0].floor;
-		
+
+	while (!outerReq.empty() || !innerReq.empty()) {
+		bool isFromOuter = false;
+		bool isUp = pE->direction == Direction::UP;
+		if (isUp) {
+			isFromOuter = outerReq[0] < innerReq[0];
+			pE->currentFloor = isFromOuter ? outerReq[0] : innerReq[0];
+		}
+		else if (pE->direction == Direction::DOWN) {
+			isFromOuter = outerReq[outerReq.size() - 1] < innerReq[innerReq.size() - 1];
+			pE->currentFloor = isFromOuter ? outerReq[outerReq.size() - 1] : innerReq[innerReq.size() - 1];
+		}
+
 		int currFloor = pE->currentFloor;
 		int currPass = pE->currentPasser;
 
-		auto currReq = find(reqs.begin(), reqs.end(), pE->currentFloor);
-		while (currReq != reqs.end()) {
+		auto currReq = isFromOuter ? find(outerReq.begin(), outerReq.end(), pE->currentFloor) 
+			: find(innerReq.begin(), innerReq.end(), pE->currentFloor);
+		while (currReq != outerReq.end()) {
 			// Increment for passenger based on where the request is from
-			(reqs[0].floor == (*currReq).floor && reqs[0].place == Place::OUTER)
+			(isFromOuter)
 				? currPass++
 				: currPass--;
 			// Removing current requests
-			reqs.erase(currReq);
+			(isFromOuter) 
+				? outerReq.erase(currReq)
+				: innerReq.erase(currReq);
+			isUp 
+				? isFromOuter = outerReq[0] < innerReq[0] 
+				: isFromOuter = outerReq[outerReq.size() - 1] < innerReq[innerReq.size() - 1];
 
-			currReq = find(reqs.begin(), reqs.end(), pE->currentFloor);
+			currReq = isFromOuter 
+				? find(outerReq.begin(), outerReq.end(), pE->currentFloor)
+				: find(innerReq.begin(), innerReq.end(), pE->currentFloor);
 		}
 
 		pE->currentPasser = currPass;
@@ -320,16 +333,19 @@ void rideElevators(Elevator* pE) {
 			int toFloor = getInnerRequest();
 			Request nextReq = Request{ toFloor, pE->direction, Place::INNER };
 			if (pE->isValidInnerReq(nextReq.floor))
-				pE->requests.push_back(nextReq);
+				pE->innerReq.push_back(nextReq.floor);
 
 			// Problem: can't reach e2, need concurrent function
 			// Can hard code this...
 		}
 
 		// sort here or in delegate
-		sort(reqs.begin(), reqs.end());
+		sort(outerReq.begin(), outerReq.end());
+		sort(innerReq.begin(), innerReq.end());
 	}
 
+	pE->outerReq = outerReq;
+	pE->innerReq = innerReq;
 	pE->direction = Direction::IDLE;
 }
 
