@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
-#include <algorithm>
+#include <set>
+#include <algorithm> // for std::sort
 #include <string>
 
 #define MAX_PASS 10
@@ -25,16 +26,16 @@ struct Request {
 	Direction direction;
 	Place place;
 
-	string toString() { 
+	string toString() const { 
 		string dir = (direction == Direction::UP) ? "UP" : ((direction == Direction::DOWN) ? "DOWN" : "IDLE");
 		string pla = (place == Place::OUTER) ? "OUTER" : "INNER";
-		return "Floor: " + to_string(floor) + ", Direction: " + dir + ", Place: " + pla + "\n";
+		return "\n\tFloor: " + to_string(floor) + ", Direction: " + dir + ", Place: " + pla;
 	}
 
-	/*bool operator<(const Request& a) const
+	bool operator<(const Request & a) const
 	{
-		return direction == Direction::UP ? floor < a.floor : floor > a.floor;
-	}*/
+		return (direction == Direction::UP && direction == a.direction) ? floor < a.floor : floor > a.floor;
+	}
 };
 
 struct Elevator {
@@ -42,8 +43,8 @@ struct Elevator {
 	int currentFloor = 0;
 	int currentPasser = 0;
 	enum::Direction direction = Direction::IDLE;
-	vector<int> outerReq = {};
-	vector<int> innerReq = {};
+	set<Request> outerReq = {};
+	set<Request> innerReq = {};
 
 	int getCurrentFloor() { return currentFloor; }
 	int getCurrentPasser() { return currentPasser; }
@@ -51,20 +52,20 @@ struct Elevator {
 
 	void printRequests() {
 		cout << "Requests of elevator " << id << ": ";
-		vector<int>::iterator it;
+		set<Request>::iterator it;
 		for (it = outerReq.begin(); it != outerReq.end(); it++)
-			cout << to_string(*it);
+			cout << (*it).toString();
 		cout << endl;
 	}
 
 	void printInfo() {
 		string dir = (direction == Direction::UP) ? "UP" : ((direction == Direction::DOWN) ? "DOWN" : "IDLE");
-		cout << "================================================\n";
+		cout << "________________________________________________\n";
 		cout << "Elevator #" << id << endl;
 		cout << "Elevator is currently at floor " << currentFloor <<endl;
 		cout << "Elevator's current number of people is " << currentPasser << endl;
 		cout << "Elevator's current direction is " << dir << endl;
-		cout << "================================================\n";
+		cout << "________________________________________________\n";
 	}
 
 	// Calculate score for elevator
@@ -123,7 +124,7 @@ int main(int argc, char** argv) {
 	cout << "A waiting area's number of elevators is: " << waitArea.numElevator << endl;
 	cout << "Elevator's number of maximum passengers is: " << waitArea.maxPassenger << endl;
 
-	e1.currentFloor = 5; // for test
+	e1.currentFloor = 7; // for test
 
 	e1.printInfo();
 	e2.printInfo();
@@ -198,7 +199,7 @@ int getInnerRequest() {
 void delegateRequest(Request r) {
 	// Lambda function for delegate request and increment passer
 	auto deleReq = [](Elevator *e, Request r) {
-		e->outerReq.push_back(r.floor);
+		e->outerReq.insert(r);
 		if (e->direction == Direction::IDLE) e->direction = r.direction;
 	};
 
@@ -220,55 +221,6 @@ void delegateRequest(Request r) {
 	else if (e2Score == -1) deleReq(&e1, r);
 	// Smallest score wins!
 	else e1Score < e2Score ? deleReq(&e1, r) : deleReq(&e2, r);
-	/*
-	// TODO: check for direction...
-	// Case: Full for both elevators
-	// TODO implement these as isValidReq
-	if (e1.currentPasser == MAX_PASS && e2.currentPasser == MAX_PASS) {
-		//cout << "Both elevators are full!\nOr in different direction. Putting request in queue..." << endl;
-		cout << "Both elevators are full!\nOr in different direction. Required input again after riding..." << endl;
-
-		waitArea.queueRequests.push_back(r);
-		// TODO implement queueRequests
-		return;
-	}
-	// Case: Full for one elevator
-	else if (e1.currentPasser < MAX_PASS && e2.currentPasser == MAX_PASS) deleReq(&e1, r);
-	else if (e1.currentPasser == MAX_PASS && e2.currentPasser > MAX_PASS) deleReq(&e2, r);
-	// Case: Both elevators are idle
-	else if (e1.direction == e2.direction && e1.direction == IDLE) {
-		if (abs(e1.currentFloor - r.floor) < abs(e2.currentFloor - r.floor))
-			deleReq(&e1, r);
-		else deleReq(&e2, r);
-	}
-	// Case: Both elevators are going in the same direction as request
-	else if (e1.direction == e2.direction && e1.direction == r.direction) {
-		if (e1.direction == DOWN) {
-			if (e1.currentFloor > r.floor && e2.currentFloor > r.floor) {
-				if (e1.currentFloor < e2.currentFloor)
-					deleReq(&e1, r);
-				else deleReq(&e2, r);
-			} 
-			else if (e1.currentFloor < r.floor)
-				deleReq(&e2, r);
-			else deleReq(&e1, r);
-		}
-		else if (e1.direction == UP) {
-			if (e1.currentFloor < r.floor && e2.currentFloor < r.floor) {
-				if (e1.currentFloor > e2.currentFloor)
-					deleReq(&e1, r);
-				else deleReq(&e2, r);
-			}
-			else if (e1.currentFloor > r.floor)
-				deleReq(&e2, r);
-			else deleReq(&e1, r);
-		}
-	}
-	// Case: Two elevators has different directions
-	else if (e1.direction != e2.direction && e1.direction != r.direction) {
-		deleReq(&e2, r);
-	} else deleReq(&e1, r);
-	*/
 }
 
 bool sortByDirection (const Request& l, const Request& r) {
@@ -276,11 +228,17 @@ bool sortByDirection (const Request& l, const Request& r) {
 }
 
 void rideElevators(Elevator* pE) {
-	vector<int> outerReq = pE->outerReq;
-	vector<int> innerReq = pE->innerReq;
+	vector<int> outerReq = {};
+	vector<int> innerReq = {};
+	for (set<Request>::iterator it = pE->outerReq.begin(); it != pE->outerReq.end(); ++it) {
+		outerReq.push_back((*it).floor);
+	}
+	for (set<Request>::iterator it = pE->innerReq.begin(); it != pE->innerReq.end(); ++it) {
+		innerReq.push_back((*it).floor);
+	}
 	
-	sort(outerReq.begin(), outerReq.end());
-	sort(innerReq.begin(), innerReq.end());
+	/*sort(outerReq.begin(), outerReq.end());
+	sort(innerReq.begin(), innerReq.end());*/
 
 	cout << "For elevator " << pE->id 
 		<< ", the current floor is " << pE->currentFloor 
@@ -290,42 +248,54 @@ void rideElevators(Elevator* pE) {
 		bool isFromOuter = outerReq.empty() ? false : (innerReq.empty() ? true : NULL);
 		bool isUp = pE->direction == Direction::UP;
 
-		if (isUp) {
-			isFromOuter = outerReq[0] < innerReq[0];
-			pE->currentFloor = isFromOuter ? outerReq[0] : innerReq[0];
-		}
-		else if (pE->direction == Direction::DOWN) {
-			isFromOuter = outerReq[outerReq.size() - 1] < innerReq[innerReq.size() - 1];
-			pE->currentFloor = isFromOuter ? outerReq[outerReq.size() - 1] : innerReq[innerReq.size() - 1];
-		}
+		isFromOuter = outerReq[0] < innerReq[0];
+		pE->currentFloor = isFromOuter ? outerReq[0] : innerReq[0];
+		
 		int currFloor = pE->currentFloor;
 		int currPass = pE->currentPasser;
 		cout << "here1";
 
-		auto currReq = isFromOuter ? find(outerReq.begin(), outerReq.end(), pE->currentFloor) 
+		vector<int>::iterator currReq = isFromOuter ? find(outerReq.begin(), outerReq.end(), pE->currentFloor) 
 			: find(innerReq.begin(), innerReq.end(), pE->currentFloor);
-		while (currReq != outerReq.end()) {
-			// Increment for passenger based on where the request is from
-			(isFromOuter)
-				? currPass++
-				: currPass--;
-			// Removing current requests
-			(isFromOuter) 
-				? outerReq.erase(currReq)
-				: innerReq.erase(currReq);
-			isUp 
-				? isFromOuter = outerReq.empty() ? false : innerReq.empty() ? true : outerReq[0] < innerReq[0]
-				: isFromOuter = outerReq.empty()
-					? false
-					: innerReq.empty()
+		while (currReq != outerReq.end() || currReq != innerReq.end())
+		{
+			if (isFromOuter) {
+				while (currReq != outerReq.end()) {
+					// Increment for passenger based on where the request is from
+					(isFromOuter)
+						? currPass++
+						: currPass--;
+					// Removing current requests
+					(isFromOuter)
+						? outerReq.erase(currReq)
+						: innerReq.erase(currReq);
+					/*isUp
+						? isFromOuter = outerReq.empty() ? false : innerReq.empty() ? true : *(outerReq.begin()) < *(innerReq.begin())
+						: isFromOuter = outerReq.empty()
+						? false
+						: innerReq.empty()
 						? true
-						: outerReq[outerReq.size() - 1] < innerReq[innerReq.size() - 1];
+						: *(outerReq.end()) < *(innerReq.end());*/
 
-			currReq = isFromOuter 
-				? find(outerReq.begin(), outerReq.end(), pE->currentFloor)
-				: find(innerReq.begin(), innerReq.end(), pE->currentFloor);
+					isFromOuter = outerReq.empty();
+
+					currReq = isFromOuter
+						? find(outerReq.begin(), outerReq.end(), pE->currentFloor)
+						: find(innerReq.begin(), innerReq.end(), pE->currentFloor);
+				}
+			}
+			else {
+				while (currReq != innerReq.end()) {
+					currPass++;
+					innerReq.erase(currReq);
+					isFromOuter = !innerReq.empty();
+					currReq = isFromOuter
+						? find(outerReq.begin(), outerReq.end(), pE->currentFloor)
+						: find(innerReq.begin(), innerReq.end(), pE->currentFloor);
+				}
+			}
 		}
-
+		
 		pE->currentPasser = currPass;
 
 		pE->printInfo();
@@ -338,25 +308,34 @@ void rideElevators(Elevator* pE) {
 			int toFloor = getInnerRequest();
 			Request nextReq = Request{ toFloor, pE->direction, Place::INNER };
 			if (pE->isValidInnerReq(nextReq.floor))
-				pE->innerReq.push_back(nextReq.floor);
+				pE->innerReq.insert(nextReq);
 
 			// Problem: can't reach e2, need concurrent function
 			// Can hard code this...
 		}
 
 		// sort here or in delegate
-		sort(outerReq.begin(), outerReq.end());
-		sort(innerReq.begin(), innerReq.end());
+		/*sort(outerReq.begin(), outerReq.end());
+		sort(innerReq.begin(), innerReq.end());*/
+		for (set<Request>::iterator it = pE->outerReq.begin(); it != pE->outerReq.end(); ++it) {
+			outerReq.push_back((*it).floor);
+		}
+		for (set<Request>::iterator it = pE->innerReq.begin(); it != pE->innerReq.end(); ++it) {
+			innerReq.push_back((*it).floor);
+		}
 	}
 
-	pE->outerReq = outerReq;
-	pE->innerReq = innerReq;
+	pE->outerReq = {};
+	pE->innerReq = {};
 	pE->direction = Direction::IDLE;
 }
 
 void exit()
 {
+	waitArea.elevators.clear();
 	e1 = { 1 }; e2 = { 2 };
+	waitArea.elevators.push_back(&e1);
+	waitArea.elevators.push_back(&e2);
 	e1.printInfo();
 	e2.printInfo();
 	cout << "\nThank you for using Bear Elevators. Have a good night <3" << endl;
