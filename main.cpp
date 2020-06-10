@@ -63,7 +63,7 @@ struct Elevator {
 		cout << "________________________________________________\n";
 		cout << "Elevator #" << id << endl;
 		cout << "Elevator is currently at floor " << currentFloor <<endl;
-		cout << "Elevator's current number of people is " << currentPasser << endl;
+		cout << "Elevator's current est number of people is " << currentPasser << endl;
 		cout << "Elevator's current direction is " << dir << endl;
 		cout << "________________________________________________\n";
 	}
@@ -200,6 +200,7 @@ void delegateRequest(Request r) {
 	// Lambda function for delegate request and increment passer
 	auto deleReq = [](Elevator *e, Request r) {
 		e->outerReq.insert(r);
+		e->currentPasser++;
 		if (e->direction == Direction::IDLE) e->direction = r.direction;
 	};
 
@@ -223,9 +224,9 @@ void delegateRequest(Request r) {
 	else e1Score < e2Score ? deleReq(&e1, r) : deleReq(&e2, r);
 }
 
-bool sortByDirection (const Request& l, const Request& r) {
-	return l.direction == Direction::UP ? l.floor < r.floor : l.floor > r.floor;
-}
+//bool sortByDirection (const Request& l, const Request& r) {
+//	return l.direction == Direction::UP ? l.floor < r.floor : l.floor > r.floor;
+//}
 
 void rideElevators(Elevator* pE) {
 	vector<int> outerReq = {};
@@ -240,65 +241,50 @@ void rideElevators(Elevator* pE) {
 	/*sort(outerReq.begin(), outerReq.end());
 	sort(innerReq.begin(), innerReq.end());*/
 
-	cout << "For elevator " << pE->id 
-		<< ", the current floor is " << pE->currentFloor 
-		<< ", number of people in it is " << pE->currentPasser << endl;
+	//pE->printInfo();
 
 	while (!outerReq.empty() || !innerReq.empty()) {
 		bool isFromOuter = outerReq.empty() ? false : (innerReq.empty() ? true : NULL);
 		bool isUp = pE->direction == Direction::UP;
 
-		isFromOuter = outerReq[0] < innerReq[0];
+		//isFromOuter = outerReq[0] < innerReq[0];
 		pE->currentFloor = isFromOuter ? outerReq[0] : innerReq[0];
 		
 		int currFloor = pE->currentFloor;
 		int currPass = pE->currentPasser;
-		cout << "here1";
 
 		vector<int>::iterator currReq = isFromOuter ? find(outerReq.begin(), outerReq.end(), pE->currentFloor) 
 			: find(innerReq.begin(), innerReq.end(), pE->currentFloor);
-		while (currReq != outerReq.end() || currReq != innerReq.end())
-		{
+
+		while (currReq != outerReq.end() /*|| currReq != innerReq.end()*/) {
 			if (isFromOuter) {
 				while (currReq != outerReq.end()) {
-					// Increment for passenger based on where the request is from
-					(isFromOuter)
-						? currPass++
-						: currPass--;
+					//currPass++;
 					// Removing current requests
-					(isFromOuter)
-						? outerReq.erase(currReq)
-						: innerReq.erase(currReq);
-					/*isUp
-						? isFromOuter = outerReq.empty() ? false : innerReq.empty() ? true : *(outerReq.begin()) < *(innerReq.begin())
-						: isFromOuter = outerReq.empty()
-						? false
-						: innerReq.empty()
-						? true
-						: *(outerReq.end()) < *(innerReq.end());*/
+					outerReq.erase(currReq);
 
 					isFromOuter = outerReq.empty();
-
 					currReq = isFromOuter
 						? find(outerReq.begin(), outerReq.end(), pE->currentFloor)
 						: find(innerReq.begin(), innerReq.end(), pE->currentFloor);
 				}
 			}
-			else {
-				while (currReq != innerReq.end()) {
-					currPass++;
-					innerReq.erase(currReq);
-					isFromOuter = !innerReq.empty();
-					currReq = isFromOuter
-						? find(outerReq.begin(), outerReq.end(), pE->currentFloor)
-						: find(innerReq.begin(), innerReq.end(), pE->currentFloor);
-				}
-			}
+			//else if (!isFromOuter) {
+			//	while (currReq != innerReq.end()) {
+			//		// Increment for passenger based on where the request is from
+			//		currPass--;
+			//		innerReq.erase(currReq);
+			//		isFromOuter = !innerReq.empty();
+			//		currReq = isFromOuter
+			//			? find(outerReq.begin(), outerReq.end(), pE->currentFloor)
+			//			: find(innerReq.begin(), innerReq.end(), pE->currentFloor);
+			//	}
+			//}
 		}
 		
 		pE->currentPasser = currPass;
 
-		pE->printInfo();
+		//pE->printInfo();
 
 		/*if (currFloor == FLOOR_NUM) pE->direction = DOWN;
 		else if (currFloor == 1) pE->direction = UP;*/
@@ -307,6 +293,7 @@ void rideElevators(Elevator* pE) {
 		if (currPass < MAX_PASS) {
 			int toFloor = getInnerRequest();
 			Request nextReq = Request{ toFloor, pE->direction, Place::INNER };
+			// Delegete outer request
 			if (pE->isValidInnerReq(nextReq.floor))
 				pE->innerReq.insert(nextReq);
 
@@ -317,12 +304,12 @@ void rideElevators(Elevator* pE) {
 		// sort here or in delegate
 		/*sort(outerReq.begin(), outerReq.end());
 		sort(innerReq.begin(), innerReq.end());*/
-		for (set<Request>::iterator it = pE->outerReq.begin(); it != pE->outerReq.end(); ++it) {
+		/*for (set<Request>::iterator it = pE->outerReq.begin(); it != pE->outerReq.end(); ++it) {
 			outerReq.push_back((*it).floor);
 		}
 		for (set<Request>::iterator it = pE->innerReq.begin(); it != pE->innerReq.end(); ++it) {
 			innerReq.push_back((*it).floor);
-		}
+		}*/
 	}
 
 	pE->outerReq = {};
